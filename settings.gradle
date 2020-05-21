@@ -1,0 +1,3 @@
+rootProject.name='LinkResolver'
+include ':app'
+include ':linkresolver'
