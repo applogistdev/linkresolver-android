@@ -42,17 +42,16 @@ class MainActivity : AppCompatActivity() {
             .map<TestModel>(
                 Type<ItemLinkPreviewBinding>(R.layout.item_link_preview)
                     .onBind {
-                        it.binding.linkTitleTextView.text = ""
-                        it.binding.linkDescriptionTextView.text = ""
-                        it.binding.linkUrlTextView.text = ""
-                        it.binding.linkImageView.setImageResource(0)
-
                         LinkResolver(
                             it.binding.data!!.url,
                             object : LinkResolverListener {
                                 override fun onSuccess(metaData: MetaData) {
-                                    LogUtils.d(it.binding.data!!.url, metaData)
-                                    LogUtils.d("ALL_META_TAGS", metaData.allMetaTags)
+                                    LogUtils.d(it.adapterPosition, metaData.userValue)
+
+                                    if(it.adapterPosition != metaData.userValue){
+                                        return
+                                    }
+
                                     if (metaData.image.isNotEmpty()) {
 
                                         val multi = MultiTransformation(
@@ -82,8 +81,14 @@ class MainActivity : AppCompatActivity() {
                                     LogUtils.e(error.message)
                                 }
 
-                            }).resolve()
+                            }, it.adapterPosition).resolve()
 
+                    }
+                    .onRecycle {
+                        it.binding.linkTitleTextView.text = ""
+                        it.binding.linkDescriptionTextView.text = ""
+                        it.binding.linkUrlTextView.text = ""
+                        it.binding.linkImageView.setImageDrawable(null)
                     }
             )
             .into(recyclerView)

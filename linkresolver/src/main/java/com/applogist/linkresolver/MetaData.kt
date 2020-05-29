@@ -13,7 +13,9 @@ data class MetaData(
     var siteName : String = "",
     var description : String = "",
 
-    var allMetaTags : HashMap<String, String> = hashMapOf()
+    var allMetaTags : HashMap<String, String> = hashMapOf(),
+
+    var userValue : Any? = null
 ){
     override fun toString(): String {
         return "title: $title\n" +

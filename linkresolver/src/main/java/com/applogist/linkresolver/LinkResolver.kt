@@ -17,11 +17,13 @@ import org.jsoup.nodes.Document
 class LinkResolver(
     private val text: String,
     private val listener: LinkResolverListener,
+    private val userValue : Any? = null,
     private val viewScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 ) {
-    var links = arrayListOf<String>()
+    private var links = arrayListOf<String>()
     fun resolve() {
         val metaData = MetaData()
+        metaData.userValue = userValue
         links = text.extractLinks()
         if (links.isNotEmpty()) {
             viewScope.launch {
