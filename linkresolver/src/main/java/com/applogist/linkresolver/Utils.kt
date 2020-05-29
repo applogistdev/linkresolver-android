@@ -28,12 +28,3 @@ fun String.find(pattern: String, index: Int): String {
     }
     return match
 }
-
-enum class LinkTypes{
-    WEBSITE,
-    MUSIC,
-    VIDEO,
-    ARTICLE,
-    BOOK,
-    PROFILE
-}
