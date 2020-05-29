@@ -1,6 +1,5 @@
 package com.applogist.linkresolver
 
-import android.net.Uri
 import android.webkit.URLUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -8,7 +7,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.UnsupportedMimeTypeException
-import org.jsoup.helper.HttpConnection
 import org.jsoup.nodes.Document
 
 /*
@@ -61,18 +59,7 @@ class LinkResolver(
                             metaData.title = content
                         }
                         "og:type" -> {
-                            metaData.typeDetail = content
-                            if(content.contains("music")){
-                                metaData.type = LinkTypes.MUSIC
-                            }else if(content.contains("video")){
-                                metaData.type = LinkTypes.VIDEO
-                            }else if(content.contains("article")){
-                                metaData.type = LinkTypes.ARTICLE
-                            }else if(content.contains("book")){
-                                metaData.type = LinkTypes.BOOK
-                            }else if(content.contains("profile")){
-                                metaData.type = LinkTypes.PROFILE
-                            }
+                            metaData.type = content
                         }
                         "og:image" -> {
                             if(URLUtil.isValidUrl(content)){
@@ -84,51 +71,8 @@ class LinkResolver(
                         "og:url" -> {
                             metaData.url = content
                         }
-                        //Optional
                         "og:description" -> {
                             metaData.description = content
-                        }
-                        "og:locale" -> {
-                            metaData.locale = content
-                        }
-                        "og:site_name" -> {
-                            metaData.siteName = content
-                        }
-                        "og:image:type" -> {
-                            metaData.imageType = content
-                        }
-                        "og:image:width" -> {
-                            metaData.imageWidth = content
-                        }
-                        "og:image:height" -> {
-                            metaData.imageHeight = content
-                        }
-                        "og:video" -> {
-                            metaData.video = content
-                        }
-                        "og:video:url" -> {
-                            metaData.video = content
-                        }
-                        "og:video:secure_url" -> {
-                            metaData.videoSecureUrl = content
-                        }
-                        "og:video:width" -> {
-                            metaData.videoWidth = content
-                        }
-                        "og:video:height" -> {
-                            metaData.videoHeight = content
-                        }
-                        "og:video:tag" -> {
-                            metaData.videoTags.add(content)
-                        }
-                        "og:audio" -> {
-                            metaData.audio = content
-                        }
-                        "og:audio:type" -> {
-                            metaData.audioType = content
-                        }
-                        "og:audio:secure_url" -> {
-                            metaData.audioSecureUrl = content
                         }
                     }
                 }
