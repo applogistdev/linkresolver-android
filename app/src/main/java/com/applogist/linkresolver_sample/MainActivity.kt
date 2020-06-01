@@ -38,51 +38,52 @@ class MainActivity : AppCompatActivity() {
             items.add(TestModel("Lorem iprum dolar sit amet ${it} test here https://www.google.com \n"))
         }
 
+        LinkResolver.init(application)
+
+
         LastAdapter(items, BR.data)
             .map<TestModel>(
                 Type<ItemLinkPreviewBinding>(R.layout.item_link_preview)
                     .onBind {
-                        LinkResolver(
-                            it.binding.data!!.url,
-                            object : LinkResolverListener {
-                                override fun onSuccess(metaData: MetaData) {
-                                    LogUtils.d(it.adapterPosition, metaData.userValue)
+                        LinkResolver.instance.resolve(it.binding.data!!.url, object : LinkResolverListener {
+                            override fun onSuccess(metaData: MetaData) {
+                                LogUtils.d(it.adapterPosition, metaData.userValue)
 
-                                    if(it.adapterPosition != metaData.userValue){
-                                        return
-                                    }
+                                if (it.adapterPosition != metaData.userValue) {
+                                    return
+                                }
 
-                                    if (metaData.image.isNotEmpty()) {
+                                if (metaData.image.isNotEmpty()) {
 
-                                        val multi = MultiTransformation(
-                                            CenterCrop(),
-                                            RoundedCornersTransformation(
-                                                ConvertUtils.dp2px(3f),
-                                                0,
-                                                RoundedCornersTransformation.CornerType.LEFT
-                                            )
+                                    val multi = MultiTransformation(
+                                        CenterCrop(),
+                                        RoundedCornersTransformation(
+                                            ConvertUtils.dp2px(3f),
+                                            0,
+                                            RoundedCornersTransformation.CornerType.LEFT
                                         )
+                                    )
 
-                                        Glide.with(this@MainActivity)
-                                            .load(metaData.image)
-                                            .error(R.mipmap.ic_launcher)
-                                            .apply(RequestOptions.bitmapTransform(multi)).into(it.binding.linkImageView)
+                                    Glide.with(this@MainActivity)
+                                        .load(metaData.image)
+                                        .error(R.mipmap.ic_launcher)
+                                        .apply(RequestOptions.bitmapTransform(multi))
+                                        .into(it.binding.linkImageView)
 
-                                        it.binding.linkImageView.visibility = View.VISIBLE
-                                    } else {
-                                        it.binding.linkImageView.visibility = View.GONE
-                                    }
-                                    it.binding.linkTitleTextView.text = metaData.title
-                                    it.binding.linkDescriptionTextView.text = metaData.description
-                                    it.binding.linkUrlTextView.text = Uri.parse(metaData.url).host
+                                    it.binding.linkImageView.visibility = View.VISIBLE
+                                } else {
+                                    it.binding.linkImageView.visibility = View.GONE
                                 }
+                                it.binding.linkTitleTextView.text = metaData.title
+                                it.binding.linkDescriptionTextView.text = metaData.description
+                                it.binding.linkUrlTextView.text = Uri.parse(metaData.url).host
+                            }
 
-                                override fun onError(error: LinkResolverError) {
-                                    LogUtils.e(error.message)
-                                }
+                            override fun onError(error: LinkResolverError) {
+                                LogUtils.e(error.message)
+                            }
 
-                            }, it.adapterPosition).resolve()
-
+                        }, it.adapterPosition)
                     }
                     .onRecycle {
                         it.binding.linkTitleTextView.text = ""

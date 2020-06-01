@@ -1,6 +1,8 @@
 package com.applogist.linkresolver
 
+import android.app.Application
 import android.webkit.URLUtil
+import com.applogist.linkresolver.room.MetaDataRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -14,121 +16,141 @@ import org.jsoup.nodes.Document
 *  Copyright © 2020 Mustafa Ürgüplüoğlu. All rights reserved.
 */
 
-class LinkResolver(
-    private val text: String,
-    private val listener: LinkResolverListener,
-    private val userValue : Any? = null,
-    private val viewScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
-) {
-    private var links = arrayListOf<String>()
-    fun resolve() {
+class LinkResolver {
+    companion object{
+        lateinit var instance: LinkResolver
+
+        fun init(application: Application, viewScope: CoroutineScope = CoroutineScope(Dispatchers.IO)){
+            instance = LinkResolver()
+            instance.repository = MetaDataRepository(application)
+            instance.viewScope = viewScope
+        }
+    }
+    private lateinit var repository: MetaDataRepository
+    private lateinit var viewScope: CoroutineScope
+
+    fun clearCache(){
+        viewScope.launch {
+            instance.repository.deleteAll()
+        }
+    }
+
+    fun resolve(text : String, listener: LinkResolverListener, userValue: Any? = null) {
         val metaData = MetaData()
         metaData.userValue = userValue
-        links = text.extractLinks()
+        val links = text.extractLinks()
         if (links.isNotEmpty()) {
+            metaData.rawLink = links[0]
             viewScope.launch {
-                val document: Document
-                try {
-                    document = Jsoup.connect(links[0])
-                        .userAgent("Mozilla")
-                        .referrer("https://www.google.com")
-                        .timeout(30 * 1000)
-                        .followRedirects(true)
-                        .get()
-                }catch (e : Exception){
-                    if (e is UnsupportedMimeTypeException) {
-                        val mimeType = e.mimeType
-                        if (mimeType != null && mimeType.startsWith("image")) {
-                            metaData.image = links[0]
-                            notifySuccess(metaData)
-                            return@launch
-                        }
-                    }
-                    notifyError(LinkResolverError(e.message.toString()))
-                    return@launch
-                }
-
-                //css query https://www.w3schools.com/cssref/css_selectors.asp
-                //region Open Graph protocol https://ogp.me/
-                val ogAllTags = document.select("meta[property*=\"og:\"]")
-                val allTags = document.getElementsByTag("meta")
-
-                ogAllTags.forEach {
-                    val property = it.attr("property")
-                    val content = it.attr("content")
-                    when (property) {
-                        "og:title" -> {
-                            metaData.title = content
-                        }
-                        "og:type" -> {
-                            metaData.type = content
-                        }
-                        "og:image" -> {
-                            if(URLUtil.isValidUrl(content)){
-                                metaData.image = content
-                            }else{
-                                metaData.image = links[0] + content
+                val exist = repository.getById(links[0])
+                if (exist != null) {
+                    exist.userValue = userValue
+                    notifySuccess(exist, listener, false)
+                } else {
+                    val document: Document
+                    try {
+                        document = Jsoup.connect(links[0])
+                            .userAgent("Mozilla")
+                            .referrer("https://www.google.com")
+                            .timeout(30 * 1000)
+                            .followRedirects(true)
+                            .get()
+                    } catch (e: Exception) {
+                        if (e is UnsupportedMimeTypeException) {
+                            val mimeType = e.mimeType
+                            if (mimeType != null && mimeType.startsWith("image")) {
+                                metaData.image = links[0]
+                                notifySuccess(metaData, listener)
+                                return@launch
                             }
                         }
-                        "og:url" -> {
-                            metaData.url = content
-                        }
-                        "og:description" -> {
-                            metaData.description = content
-                        }
+                        notifyError(LinkResolverError(e.message.toString()), listener)
+                        return@launch
                     }
-                }
-                //endregion
 
-                allTags.forEach {
-                    val name = it.attr("name")
-                    val property = it.attr("property")
-                    val content = it.attr("content")
-                    metaData.allMetaTags[if(property.isEmpty()) name else property] = content
+                    //css query https://www.w3schools.com/cssref/css_selectors.asp
+                    //region Open Graph protocol https://ogp.me/
+                    val ogAllTags = document.select("meta[property*=\"og:\"]")
+                    val allTags = document.getElementsByTag("meta")
 
-                    when(name){
-                        "title" -> {
-                            if(metaData.title.isEmpty()){
+                    ogAllTags.forEach {
+                        val property = it.attr("property")
+                        val content = it.attr("content")
+                        when (property) {
+                            "og:title" -> {
                                 metaData.title = content
                             }
-                        }
-                        "description" -> {
-                            if(metaData.description.isEmpty()){
+                            "og:type" -> {
+                                metaData.type = content
+                            }
+                            "og:image" -> {
+                                if (URLUtil.isValidUrl(content)) {
+                                    metaData.image = content
+                                } else {
+                                    metaData.image = links[0] + content
+                                }
+                            }
+                            "og:url" -> {
+                                metaData.url = content
+                            }
+                            "og:description" -> {
                                 metaData.description = content
                             }
                         }
                     }
-                }
+                    //endregion
 
-                if(metaData.title.isEmpty() && metaData.siteName.isNotEmpty()){
-                    metaData.title = metaData.siteName
-                }else if(document.title().isNotEmpty()){
-                    metaData.title = document.title()
-                }else{
-                    val title = document.toString().find("<title(.*?)>(.*?)</title>", 2)
-                    if(title.isNotEmpty()){
-                        metaData.title = title
+                    allTags.forEach {
+                        val name = it.attr("name")
+                        val content = it.attr("content")
+
+                        when (name) {
+                            "title" -> {
+                                if (metaData.title.isEmpty()) {
+                                    metaData.title = content
+                                }
+                            }
+                            "description" -> {
+                                if (metaData.description.isEmpty()) {
+                                    metaData.description = content
+                                }
+                            }
+                        }
                     }
-                }
 
-                notifySuccess(metaData)
+                    if (metaData.title.isEmpty() && metaData.siteName.isNotEmpty()) {
+                        metaData.title = metaData.siteName
+                    } else if (document.title().isNotEmpty()) {
+                        metaData.title = document.title()
+                    } else {
+                        val title = document.toString().find("<title(.*?)>(.*?)</title>", 2)
+                        if (title.isNotEmpty()) {
+                            metaData.title = title
+                        }
+                    }
+
+                    notifySuccess(metaData, listener)
+                }
             }
         } else {
             listener.onError(LinkResolverError("URL not found"))
         }
     }
 
-    private suspend fun notifySuccess(metaData: MetaData) {
-        if(metaData.url.isEmpty()){
-            metaData.url = links[0]
+    private suspend fun notifySuccess(metaData: MetaData, listener: LinkResolverListener, save : Boolean = true) {
+        if (metaData.url.isEmpty()) {
+            metaData.url = metaData.rawLink
         }
-        withContext(Dispatchers.Main){
+        if(save){
+            repository.insert(metaData)
+        }
+        withContext(Dispatchers.Main) {
             listener.onSuccess(metaData)
         }
     }
 
-    private suspend fun notifyError(linkResolverError: LinkResolverError) {
-        withContext(Dispatchers.Main){
+    private suspend fun notifyError(linkResolverError: LinkResolverError, listener: LinkResolverListener) {
+        withContext(Dispatchers.Main) {
             listener.onError(linkResolverError)
         }
     }
