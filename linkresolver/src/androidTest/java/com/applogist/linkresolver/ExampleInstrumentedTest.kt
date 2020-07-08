@@ -19,4 +19,11 @@ class ExampleInstrumentedTest {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals("com.applogist.linkresolver.test", appContext.packageName)
     }
+
+    @Test
+    fun testExtractLinks() {
+        val link = "www.google.com"
+        val links = link.extractLinks()
+        assertEquals(link, links[0])
+    }
 }
