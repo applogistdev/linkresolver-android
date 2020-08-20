@@ -3,13 +3,11 @@ package com.applogist.linkresolver
 import android.app.Application
 import android.webkit.URLUtil
 import com.applogist.linkresolver.room.MetaDataRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import org.jsoup.Jsoup
 import org.jsoup.UnsupportedMimeTypeException
 import org.jsoup.nodes.Document
+
 
 /*
 *  Created by Mustafa Ürgüplüoğlu on 13.05.2020.
@@ -17,49 +15,54 @@ import org.jsoup.nodes.Document
 */
 
 class LinkResolver {
-    companion object{
+    companion object {
         lateinit var instance: LinkResolver
 
-        fun init(application: Application, viewScope: CoroutineScope = CoroutineScope(Dispatchers.IO)){
+        fun init(
+            application: Application,
+            viewScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
+        ) {
             instance = LinkResolver()
             instance.repository = MetaDataRepository(application)
             instance.viewScope = viewScope
         }
     }
+
     private lateinit var repository: MetaDataRepository
     private lateinit var viewScope: CoroutineScope
 
-    fun clearCache(){
+    fun clearCache() {
         viewScope.launch {
             instance.repository.deleteAll()
         }
     }
 
-    fun resolve(text : String, listener: LinkResolverListener, userValue: Any? = null) {
+    fun resolve(
+        text: String,
+        listener: LinkResolverListener,
+        userValue: Any? = null
+    ) {
         val metaData = MetaData()
         metaData.userValue = userValue
         val links = text.extractLinks()
         if (links.isNotEmpty()) {
-            metaData.rawLink = links[0]
+            val link = links[0]
+            metaData.rawLink = link
             viewScope.launch {
-                val exist = repository.getById(links[0])
+                val exist = repository.getById(link)
                 if (exist != null) {
                     exist.userValue = userValue
                     notifySuccess(exist, listener, false)
                 } else {
                     val document: Document
                     try {
-                        document = Jsoup.connect(links[0])
-                            .userAgent("Mozilla")
-                            .referrer("https://www.google.com")
-                            .timeout(30 * 1000)
-                            .followRedirects(true)
-                            .get()
+                        val response = RetrofitService.service!!.getWebsite(link)
+                        document = Jsoup.parse(response.string())
                     } catch (e: Exception) {
                         if (e is UnsupportedMimeTypeException) {
                             val mimeType = e.mimeType
                             if (mimeType != null && mimeType.startsWith("image")) {
-                                metaData.image = links[0]
+                                metaData.image = link
                                 notifySuccess(metaData, listener)
                                 return@launch
                             }
@@ -87,7 +90,7 @@ class LinkResolver {
                                 if (URLUtil.isValidUrl(content)) {
                                     metaData.image = content
                                 } else {
-                                    metaData.image = links[0] + content
+                                    metaData.image = link + content
                                 }
                             }
                             "og:url" -> {
@@ -137,11 +140,15 @@ class LinkResolver {
         }
     }
 
-    private suspend fun notifySuccess(metaData: MetaData, listener: LinkResolverListener, save : Boolean = true) {
+    private suspend fun notifySuccess(
+        metaData: MetaData,
+        listener: LinkResolverListener,
+        save: Boolean = true
+    ) {
         if (metaData.url.isEmpty()) {
             metaData.url = metaData.rawLink
         }
-        if(save){
+        if (save) {
             repository.insert(metaData)
         }
         withContext(Dispatchers.Main) {
@@ -149,7 +156,10 @@ class LinkResolver {
         }
     }
 
-    private suspend fun notifyError(linkResolverError: LinkResolverError, listener: LinkResolverListener) {
+    private suspend fun notifyError(
+        linkResolverError: LinkResolverError,
+        listener: LinkResolverListener
+    ) {
         withContext(Dispatchers.Main) {
             listener.onError(linkResolverError)
         }

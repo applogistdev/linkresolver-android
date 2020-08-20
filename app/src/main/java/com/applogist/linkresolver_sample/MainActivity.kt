@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity() {
             items.add(TestModel("Lorem iprum dolar sit amet ${it} test here https://www.google.com \n"))
         }
 
+        items.add(TestModel("http://aliexpress.com"))
+
         LinkResolver.init(application)
 
 
