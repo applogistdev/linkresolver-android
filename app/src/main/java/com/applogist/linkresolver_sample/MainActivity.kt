@@ -34,13 +34,14 @@ class MainActivity : AppCompatActivity() {
 
         recyclerView.addItemDecoration(SpacesItemDecoration(ConvertUtils.dp2px(10f)))
 
-        testLinks500.forEach {
+        shortLinks.forEach {
             items.add(TestModel("Lorem iprum dolar sit amet ${it} test here https://www.google.com \n"))
         }
 
-        items.add(TestModel("http://aliexpress.com"))
+        items.add(TestModel("http://goo.gl/jKCPgp"))
 
         LinkResolver.init(application)
+        LinkResolver.instance.clearCache()
 
 
         LastAdapter(items, BR.data)

@@ -57,16 +57,14 @@ class LinkResolver {
                     val document: Document
                     try {
                         val response = RetrofitService.service!!.getWebsite(link)
+                        val contentType = response.contentType()
+                        if(contentType?.type?.startsWith("image") == true){
+                            metaData.image = link
+                            notifySuccess(metaData, listener)
+                            return@launch
+                        }
                         document = Jsoup.parse(response.string())
                     } catch (e: Exception) {
-                        if (e is UnsupportedMimeTypeException) {
-                            val mimeType = e.mimeType
-                            if (mimeType != null && mimeType.startsWith("image")) {
-                                metaData.image = link
-                                notifySuccess(metaData, listener)
-                                return@launch
-                            }
-                        }
                         notifyError(LinkResolverError(e.message.toString()), listener)
                         return@launch
                     }
